@@ -250,7 +250,7 @@ let cat="すべて",coffee="all",mode="order",fmt="mc",deck=[],pos=0,shown=false
 let mc=null; // {step, picked, allOk, sets:[{choices,correct}]}
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
-const clean=a=>a.split("\n")[0].split("　※")[0].trim();
+const clean=a=>a.split("\n")[0].split("　※")[0].replace(/　（順不同）$/,"").trim();
 const keyOf=a=>clean(a).replace(/（[^）]*）|\([^)]*\)/g,"").replace(/\s/g,"").toLowerCase();
 const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
 
@@ -270,10 +270,68 @@ function poolKey(x,n,a,k){
 }
 const POOLS={};
 ALL.forEach(x=>x.a.forEach(([n,a],k)=>{const p=poolKey(x,n,a,k);if(!p)return;(POOLS[p]=POOLS[p]||[]).push(clean(a))}));
+// ジャンル別の選択肢プール（ans＝問題集の答え、extra＝オリジナルのダミー）
+const TYPES={
+ country:{ans:["カナダ","イタリア","フランス"],extra:["アメリカ","スペイン","ドイツ","ポルトガル","ブラジル","日本"]},
+ nationality:{ans:["イタリア（人）"],extra:["フランス（人）","スペイン（人）","アメリカ（人）","ドイツ（人）"]},
+ city:{ans:["シアトル"],extra:["ニューヨーク","サンフランシスコ","ポートランド","シカゴ","ボストン"]},
+ market:{ans:["パイクプレイスマーケット"],extra:["ファーマーズマーケット","フィッシュマーケット","ユニオンスクエアマーケット","フリーマーケット"]},
+ tool:{ans:["コーヒースクープ","ゴム印"],extra:["コーヒーミル","ドリッパー","焙煎機","麻袋","タンパー"]},
+ bird:{ans:["ハチドリ","ケツァール","アンデスコンドル"],extra:["オウム","フラミンゴ","カワセミ","ペリカン","オオハシ"]},
+ animal:{ans:["アフリカゾウ","スマトラトラ","コモドドラゴン","灰色グマ"],extra:["ジャガー","オランウータン","ライオン","ホッキョクグマ","ヒョウ"]},
+ plant:{ans:["コルジリネ"],extra:["ハイビスカス","ブーゲンビリア","モンステラ","プルメリア","ヤシ"]},
+ flower:{ans:["（赤い）バラ"],extra:["（赤い）チューリップ","（赤い）ユリ","（赤い）ガーベラ","（赤い）カーネーション"]},
+ color:{ans:["ハウスグリーン（スターバックス特有の緑色のこと）","銅","シルバー（色）"],extra:["ゴールド","ブロンズ","エメラルドグリーン","ワインレッド","ネイビー"]},
+ time:{ans:["朝"],extra:["昼","夕方","夜","夜明け前"]},
+ motif:{ans:["太陽","山","鳥","炎"],extra:["月","星","波","雲","川","花"]},
+ roastdesc:{ans:["浅い煎り具合"],extra:["深い煎り具合","中くらいの煎り具合","強い酸味","重厚なコク"]},
+ myth:{ans:["サイレン"],extra:["ペガサス","ユニコーン","メデューサ","グリフォン"]},
+ industry:{ans:["コーヒー業界"],extra:["農業界","飲食業界","ファッション業界","教育業界"]},
+ people:{ans:["女性"],extra:["子ども","農家","バリスタ","船乗り"]},
+ day:{ans:["国際女性デー"],extra:["母の日","国際コーヒーの日","アースデー","国際友情デー"]},
+ flavor:{ans:["グレープフルーツ","カラント","キャラメル","黒蜜（モラセス）"],extra:["ピーチ","ハチミツ","ラズベリー","バニラ","メープル"]},
+ pigname:{ans:["レイチェル"],extra:["ジェニファー","エミリー","サラ","マーガレット"]},
+ region:{ans:["アンティグア"],extra:["アカテナンゴ","ウエウエテナンゴ","アティトラン","コバン"]},
+ concept:{ans:["ストーリー","芸術性","専門性","テロワール","オリジン"],extra:["伝統","品質","革新性","歴史","多様性"]},
+ terrain:{ans:["山"],extra:["川","海","平原","火山","渓谷"]},
+ textile:{ans:["モラ"],extra:["ケンテ","バティック","ペイズリー","キリム"]},
+ store:{ans:["RESERVE® ROASTERY TOKYO"],extra:["RESERVE® ROASTERY SEATTLE","RESERVE® ROASTERY MILANO","RESERVE® ROASTERY SHANGHAI","RESERVE® ROASTERY NEW YORK"]},
+ blend:{ans:["スターバックス ヴェランダ ブレンド","ユーコン（ブレンド）","ドラゴン（ブレンド）","ジェイクス（ブレンド）","80/20（ブレンド）"],extra:["シアトル（ブレンド）","ノース（ブレンド）","70/30（ブレンド）","タイガー（ブレンド）"]},
+ roast:{ans:["ゴールデン ロースト","イタリアン（ロースト）","フレンチ（ロースト）"],extra:["シナモン（ロースト）","シティ（ロースト）","ウィーン（ロースト）","スパニッシュ（ロースト）"]},
+ sticker:{ans:["コーヒースタンプ"],extra:["コーヒーパスポート","コーヒーシール","コーヒーラベル","コーヒーカード"]},
+ product:{ans:["マラケッシュアイスコーヒー"],extra:["カサブランカアイスコーヒー","カイロアイスコーヒー","イスタンブールアイスコーヒー","スパイスアイスコーヒー"]},
+ work:{ans:["ロミオとジュリエット"],extra:["ハムレット","ヴェニスの商人","オセロ","マクベス"]},
+ restaurant:{ans:["ジェイクオショーネシー"],extra:["マーフィーズ","オマリーズ","ジョーズ・ダイナー","ハーバーグリル"]},
+ vehicle:{ans:["ヴェスパ"],extra:["フィアット","ゴンドラ","自転車","路面電車"]},
+ pattern:{ans:["市松（模様）"],extra:["青海波（模様）","千鳥格子（模様）","ストライプ（模様）","唐草（模様）"]},
+ stone:{ans:["テラゾー（石）"],extra:["大理石","御影石","トラバーチン（石）","玄武岩"]},
+ espterm:{ans:["クレマ"],extra:["フォーム","アロマ","ボディ","スチーム"]},
+ symbol:{ans:["フルール・ド・リス"],extra:["トリコロール","ガリアの雄鶏","エッフェル塔","マリアンヌ"]},
+ decaf:{ans:["水と二酸化炭素（二酸化炭素抽法）","水"],extra:["有機溶媒","熱湯と蒸気","酵素","超音波"]},
+ year:{ans:[],extra:["1987（年）","1992（年）","1996（年）","2008（年）","2014（年）","1982（年）"]}
+};
+const OVERRIDE={"コロンビア|⑩":"terrain"};
+const TYPE_OF={};for(const[t,v]of Object.entries(TYPES))v.ans.forEach(a=>{if(!TYPE_OF[a])TYPE_OF[a]=t});
+const NUMX=[[/（時間）$/,[8,10,12,16,18,20,24],"（時間）"],[/（番）$/,[3,4,5,7,8,9],"（番）"],[/（L）$/,[3,3.5,4,5,5.5,6,8],"（L）"],[/%$/,[70,80,95,97,99],"%"],[/^\d+$/,[50,60,70,100,120],""]];
+function typedWrong(x,n,a){
+  const c=clean(a),exclude=new Set(x.a.map(([,b])=>keyOf(b)));
+  let cand=null;
+  const t=OVERRIDE[x.name+"|"+n]||TYPE_OF[c];
+  if(t)cand=[...TYPES[t].ans,...TYPES[t].extra];
+  else if(/^\d{4}/.test(c)){const nen=/^\d{4}（年）/.test(c),me=c.slice(0,4);
+    cand=[...new Set([...(POOLS.year||[]),...TYPES.year.extra].map(y=>y.slice(0,4)))].filter(d=>d!==me).map(d=>nen?d+"（年）":d)}
+  else for(const[re,vals,suf]of NUMX)if(re.test(c)){cand=vals.map(v=>v+suf);break}
+  if(!cand)return null;
+  const seen=new Set(exclude),out=[];
+  for(const w of shuffle(cand)){const kk=w.replace(/\s/g,"").toLowerCase();const k2=keyOf(w);if(seen.has(k2)||w===c)continue;seen.add(k2);out.push(w);if(out.length===3)break}
+  return out.length?out:null;
+}
 function makeSet(x,n,a,k){
   const o=inlineOpts(x.q,n);
   if(o){const c=o.find(t=>t===clean(a))||o.find(t=>clean(a).startsWith(t))||o.find(t=>t.startsWith(clean(a)))||clean(a);
     return {choices:o.slice(),correct:c}}
+  const tw=x.f?null:typedWrong(x,n,a);
+  if(tw)return {choices:shuffle([clean(a),...tw]),correct:clean(a)};
   const ck=keyOf(a),seen=new Set([ck]),wrong=[];
   for(const c of shuffle(POOLS[poolKey(x,n,a,k)]||[])){const kk=keyOf(c);if(seen.has(kk))continue;seen.add(kk);wrong.push(c);if(wrong.length===3)break}
   if(wrong.length<3&&!x.f)for(const c of shuffle(POOLS.gen)){const kk=keyOf(c);if(seen.has(kk))continue;seen.add(kk);wrong.push(c);if(wrong.length===3)break}
