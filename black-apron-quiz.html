@@ -284,18 +284,19 @@ function startMc(){const it=deck[pos];if(!it){mc=null;return}
 
 function chips(el,opts,cur,fn){el.innerHTML="";opts.forEach(([v,l])=>{const b=document.createElement("button");b.className="chip";b.textContent=l;b.setAttribute("aria-pressed",v===cur);b.onclick=()=>fn(v);el.appendChild(b)})}
 function renderFilters(){
-  chips($("fmts"),[["mc","4択"],["card","一問一答"]],fmt,v=>{fmt=v;build()});
+  chips($("fmts"),[["mc","4択"],["card","一問一答"],["pair","相性クイズ"]],fmt,v=>{fmt=v;build()});
   chips($("cats"),["すべて","総論","Blonde","Medium","Dark"].map(v=>[v,v]),cat,v=>{cat=v;coffee="all";build()});
   const list=DATA.map((c,i)=>[i,c]).filter(([,c])=>cat==="すべて"||c.cat===cat);
   $("coffee").innerHTML=`<option value="all">${cat==="すべて"?"全コーヒー":cat+"のすべて"}（${list.reduce((s,[,c])=>s+c.items.length,0)}問）</option>`+list.map(([i,c])=>`<option value="${i}">${esc(c.name)}（${c.items.length}問）</option>`).join("");
   $("coffee").value=coffee;
-  const ng=ALL.filter(x=>st.res[x.id]==="ng").length;
+  const ng=ALL.filter(x=>st.res[x.id]==="ng"&&(fmt!=="pair"||x.f==="s7")).length;
   chips($("modes"),[["order","順番"],["shuffle","シャッフル"],["wrong",`×だけ復習（${ng}）`]],mode,v=>{mode=v;build()});
 }
 $("coffee").onchange=e=>{coffee=e.target.value;build()};
 
 function build(){
   let pool=ALL.filter(x=>(cat==="すべて"||x.cat===cat)&&(coffee==="all"||String(x.ci)===coffee));
+  if(fmt==="pair")pool=pool.filter(x=>x.f==="s7");
   if(mode==="wrong")pool=pool.filter(x=>st.res[x.id]==="ng");
   deck=mode==="order"?pool.slice():shuffle(pool);
   pos=0;shown=false;sessOk=sessNg=0;startMc();renderFilters();render();
@@ -340,7 +341,8 @@ function render(){
   const ch=`<div class="choices" role="group" aria-label="${n}の選択肢">${set.choices.map((c,i)=>{
     let cls="choice";if(m.picked!==null){if(c===set.correct)cls+=" right";else if(i===m.picked)cls+=" wrong";}
     return `<button class="${cls}" data-i="${i}" ${m.picked!==null?"disabled":""}><span class="cn">${n}</span>${esc(c)}</button>`}).join("")}</div>`;
-  card.innerHTML=`${tag}<p class="q">${qHtml(it,state)}</p>${multi}${ch}${done?ansHtml(it):""}`;
+  const qline=fmt==="pair"?`<p class="q">「${esc(it.name)}」と相性の良い風味は？</p>`:`<p class="q">${qHtml(it,state)}</p>`;
+  card.innerHTML=`${tag}${qline}${multi}${ch}${done&&fmt!=="pair"?ansHtml(it):""}`;
   card.querySelectorAll(".choice").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;m.picked=i;if(set.choices[i]!==set.correct)m.allOk=false;render()});
   if(m.picked===null){ctr.innerHTML="";return}
   if(!last){ctr.innerHTML=`<button class="btn primary" id="nx">次の空欄へ</button>`;$("nx").onclick=()=>{m.step++;m.picked=null;render()}}
