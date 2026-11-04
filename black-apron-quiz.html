@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブラックエプロン一問一答</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Zen+Kaku+Gothic+New:wght@400;500;700&family=Shippori+Mincho+B1:wght@700&display=swap">
+<style>
+/* Layout: single centered study column — filters on top, one flash card, grading bar below */
+:root{
+  --bg:#f3f1ec; --surface:#fffdf8; --ink:#1d1b19; --muted:#6c665e; --line:#dcd6cc;
+  --accent:#1e5a43; --accent-ink:#fff; --blank:#e7efe9; --ok:#1e7a4c; --ng:#b4442f;
+  --display:"Shippori Mincho B1","Hiragino Mincho ProN",serif;
+  --body:"Zen Kaku Gothic New","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#141312; --surface:#1e1c1a; --ink:#ece8e1; --muted:#a39c92; --line:#36322e;
+  --accent:#4fae86; --accent-ink:#0f1411; --blank:#1f3229; --ok:#5cc28f; --ng:#e07a63; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#141312; --surface:#1e1c1a; --ink:#ece8e1; --muted:#a39c92; --line:#36322e;
+  --accent:#4fae86; --accent-ink:#0f1411; --blank:#1f3229; --ok:#5cc28f; --ng:#e07a63; color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.7;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:20px 40px}
+.wrap{max-width:620px;margin:0 auto;display:flex;flex-direction:column;gap:16px}
+h1{font-family:var(--display);font-size:1.5rem;margin:0;letter-spacing:.02em;text-wrap:balance}
+.sub{color:var(--muted);font-size:.82rem;margin:0}
+.filters{display:flex;flex-direction:column;gap:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chip{border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:999px;padding:5px 12px;font:inherit;font-size:.82rem;cursor:pointer}
+.chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+select{font:inherit;font-size:.9rem;padding:8px 10px;border-radius:8px;border:1px solid var(--line);background:var(--surface);color:var(--ink);width:100%}
+.row{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.row > *{min-width:0}
+.progress{display:flex;justify-content:space-between;font-size:.8rem;color:var(--muted);font-variant-numeric:tabular-nums}
+.bar{height:4px;background:var(--line);border-radius:2px;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);width:0;transition:width .25s}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 18px;display:flex;flex-direction:column;gap:14px;min-height:220px}
+.tag{font-size:.75rem;color:var(--muted);letter-spacing:.06em;display:flex;gap:8px;flex-wrap:wrap}
+.tag b{color:var(--accent);font-weight:700}
+.q{font-size:1.05rem;font-weight:500;margin:0;word-break:break-word}
+.blank{display:inline-block;background:var(--blank);border-radius:6px;padding:0 6px;margin:0 2px;color:var(--accent);font-weight:700}
+.blank.filled{color:var(--ink);background:transparent;border-bottom:2px solid var(--accent);border-radius:0;padding:0 2px}
+.ans{border-top:1px dashed var(--line);padding-top:12px;display:flex;flex-direction:column;gap:6px}
+.ans div{display:grid;grid-template-columns:1.6em 1fr;gap:6px}
+.ans span:first-child{color:var(--accent);font-weight:700}
+.btn{font:inherit;font-weight:700;border-radius:10px;padding:12px 14px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer;flex:1}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink)}
+.btn.ok{color:var(--ok);border-color:var(--ok)}
+.btn.ng{color:var(--ng);border-color:var(--ng)}
+.btn:focus-visible,.chip:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.mark{font-size:.75rem;font-weight:700}
+.mark.ok{color:var(--ok)} .mark.ng{color:var(--ng)}
+.ghost{background:none;border:none;color:var(--muted);font:inherit;font-size:.8rem;text-decoration:underline;cursor:pointer;padding:4px}
+.done{text-align:center;color:var(--muted)}
+.choices{display:grid;gap:8px}
+.choice{font:inherit;text-align:left;border:1px solid var(--line);background:var(--bg);color:var(--ink);border-radius:10px;padding:11px 12px;cursor:pointer;display:grid;grid-template-columns:1.6em 1fr;gap:6px;align-items:baseline;min-width:0;word-break:break-word}
+.choice .cn{color:var(--muted);font-weight:700;font-size:.85em}
+.choice:hover:not([disabled]){border-color:var(--accent)}
+.choice:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.choice[disabled]{cursor:default;opacity:.55}
+.choice.right{border-color:var(--ok);color:var(--ok);font-weight:700;opacity:1;border-width:2px}
+.choice.wrong{border-color:var(--ng);color:var(--ng);opacity:1;text-decoration:line-through}
+.blank.current{background:var(--accent);color:var(--accent-ink)}
+.stepn{font-size:.75rem;color:var(--muted)}
+.verdict{flex:1 0 100%;text-align:center;font-weight:700}
+.verdict.ok{color:var(--ok)} .verdict.ng{color:var(--ng)}
+.seg .chip{font-weight:700}
+@media (prefers-reduced-motion:reduce){.bar i{transition:none}}
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>ブラックエプロン一問一答</h1>
+    <p class="sub">コアコーヒー編（p.24–29）</p>
+  </header>
+
+  <section class="filters">
+    <div class="chips seg" id="fmts"></div>
+    <div class="chips" id="cats"></div>
+    <select id="coffee" aria-label="コーヒーを選ぶ"></select>
+    <div class="chips" id="modes"></div>
+  </section>
+
+  <div>
+    <div class="progress"><span id="pos"></span><span id="score"></span></div>
+    <div class="bar"><i id="barfill"></i></div>
+  </div>
+
+  <article class="card" id="card"></article>
+
+  <div class="row" id="controls"></div>
+  <div class="row" style="justify-content:space-between">
+    <button class="ghost" id="prev">← 前の問題</button>
+    <button class="ghost" id="reset">記録をリセット</button>
+  </div>
+</div>
+
+<script>
+const D="HOTのみ可 / HOTもICEも可 / ICEのみ可 / 不可";
+// 共通7項目
+function std(a){return [
+ ["スリーレターは（①）",[["①",a[0]]],"s1"],
+ ["地域は（②）",[["②",a[1]]],"s2"],
+ ["加工法は（③）",[["③",a[2]]],"s3"],
+ ["キーワードは（④）",[["④",a[3]]],"s4"],
+ ["コク（⑤）/ 酸味（⑥）",[["⑤",a[4]],["⑥",a[5]]],"s5"],
+ ["相性の良い風味は（⑦）",[["⑦",a[6]]],"s7"],
+ ["ローストレベルは（⑧）",[["⑧",a[7]]],"s8"]
+];}
+const drip=n=>`店舗でのドリップ提供は（${n}（${D}））`;
+
+const DATA=[
+{cat:"総論",name:"パッケージの役割",items:[
+ ["スターバックスが（①）年に開店したとき、焙煎したコーヒー豆や茶葉は（②）で内容物を印字したワックスペーパーの袋に入れられていた。",[["①","1971（年）"],["②","ゴム印"]]],
+ ["1987年イタリアンスタイルのコーヒーハウスに変わった頃には、パッケージは単に内容物を示すだけでなく、コーヒーの（③）を絵や言葉で表現する大切な要素になった。",[["③","ストーリー"]]],
+ ["それと同時に、遊び心あふれるものやロマンチックなものなど、まるで小さな芸術作品のようなイラスト入りステッカー＝（④）が登場した。",[["④","コーヒースタンプ"]]]
+]},
+{cat:"総論",name:"FY26変更点",items:[
+ ["ディカフェ（カフェインレス）コーヒー豆 カフェイン除去方法変更　変更前：焙煎前の生豆に、（①）を用いてカフェインを除去する方法。",[["①","水と二酸化炭素（二酸化炭素抽法）"]]],
+ ["ディカフェ（カフェインレス）コーヒー豆 カフェイン除去方法変更　変更後：焙煎前の生豆に、（②）を用いてカフェインを除去する方法。",[["②","水"]]],
+ ["生豆のカフェインが（③）%以上取り除かれている。",[["③","90%"]]]
+]},
+{cat:"Blonde",name:"スターバックス ライトノート ブレンド",items:[
+ ...std(["LNB","ラテンアメリカ","水洗式","軽めのコクとミルクチョコレートのような風味\nNotes of Toasted Malt & Milk Chocolate　※Malt＝麦芽（ばくが）","コク：Light","酸味：Medium","ミルクチョコレート、煎ったナッツ","BLONDE"]),
+ ["北米では（⑨）という名称で販売されている。",[["⑨","スターバックス ヴェランダ ブレンド"]]],
+ ["中国ではブロンドローストは（⑩）と呼ばれている。",[["⑩","ゴールデン ロースト"]]],
+ ["パッケージデザインには（⑪）という鳥が描かれている。",[["⑪","ハチドリ"]]],
+ ["このコーヒーは（⑫）回以上のテイスティングを経て作られた。",[["⑫","80"]]],
+ [drip("⑬"),[["⑬","HOTのみ可"]]],
+ ["【パッケージデザイン】葉っぱの鮮やかなアクセントカラーとラテンアメリカの農園でよくみられる（⑭）の羽に使われている（⑮（色の名前））がこのコーヒーのいきいきとした味わいを表現。",[["⑭","ハチドリ"],["⑮","ハウスグリーン（スターバックス特有の緑色のこと）"]]]
+]},
+{cat:"Blonde",name:"スターバックス ブロンド エスプレッソ ロースト",items:[
+ ...std(["BEB","マルチリージョン（ラテンアメリカ・アフリカ）","水洗式","キャンディードアップルやチョコレートを思わせる甘みのある風味\nNotes of Candied Apple & Bittersweet Chocolate　※candied＝砂糖漬け","コク：Medium","酸味：Medium","レモン、オレンジ、キャラメル","BLONDE"]),
+ ["BEBは量り売りでの販売が（⑨（可/不可））",[["⑨","可"]]],
+ [drip("⑩"),[["⑩","HOTもICEも可"]]],
+ ["エスプレッソドリンクの ESP → BEB への変更は（⑪（+50円かかる / 無料））",[["⑪","無料"]]],
+ ["2017年に（⑫（国名））で販売されて以来、世界各国に広がっていった。",[["⑫","カナダ"]]]
+]},
+{cat:"Medium",name:"ブレックファースト ブレンド",items:[
+ ...std(["BRK","ラテンアメリカ","水洗式","1日のはじまりにふさわしいシトラスを思わせる風味\nNotes of Brown Sugar & Sweet Orange","コク：Medium","酸味：High","ナッツ、リンゴ、ブルーベリー、レモン","MEDIUM"]),
+ ["米国で1998年、日本では（⑨）年から販売開始。",[["⑨","2001（年）"]]],
+ [drip("⑩"),[["⑩","HOTのみ可"]]],
+ ["パッケージデザイン　一日の始まりの（⑪）をイメージし、（⑫）と、（⑬）、（⑭）が、淡い色調はBRKがミディアムローストの中でも特に（⑮）であることが描かれている。",[["⑪","朝"],["⑫","太陽"],["⑬","山"],["⑭","鳥　※順不同"],["⑮","浅い煎り具合"]]]
+]},
+{cat:"Medium",name:"サイレン ブレンド",items:[
+ ...std(["SRN","マルチリージョン（ラテンアメリカ、アフリカ）","水洗式","シトラスを感じる調和のとれた味わい\nNotes of Juicy Citrus & Chocolate","コク：Medium","酸味：Medium","キャンディードシトラス、チョコレート","MEDIUM"]),
+ [drip("⑩"),[["⑩","HOTもICEも可"]]],
+ ["パッケージデザイン　（⑨）の伝説をモチーフに（⑩）で活躍する（⑪）たちへ敬意を表す。このため3月8日の（⑫（〇〇デー））に合わせ、このコーヒーがフォーカスされる。",[["⑨","サイレン"],["⑩","コーヒー業界"],["⑪","女性"],["⑫","国際女性デー"]]]
+]},
+{cat:"Medium",name:"ケニア",items:[
+ ...std(["KEN","アフリカ","水洗式","グレープフルーツやブラックカラントを思わせる風味\nNotes of Black Currant & Grapefruits　※black currant＝カシス,スグリ","コク：Medium","酸味：High","グレープフルーツ、ベリー類、カラント（スグリ）","MEDIUM"]),
+ ["（⑨）年から販売されている。",[["⑨","1971（年）（創業当初）"]]],
+ [drip("⑩"),[["⑩","HOTもICEも可"]]],
+ ["パッケージデザイン　コーヒーの木とピンクの（⑪（植物））の葉の中に（⑫（動物））が描かれ、さらにKENの特徴的な風味である（⑬）と（⑭）が抽象的に描かれている。",[["⑪","コルジリネ"],["⑫","アフリカゾウ"],["⑬","グレープフルーツ"],["⑭","カラント"]]]
+]},
+{cat:"Medium",name:"パイク プレイス ロースト",items:[
+ ...std(["EDB　※毎日でも飲めるコーヒー＝Everyday Brewの頭文字から","ラテンアメリカ","水洗式","ほのかな香ばしさとなめらかな口あたり\nNotes of Cocoa & Rich Praline　※praline＝ナッツにカラメルがけしたもの","コク：Medium","酸味：Medium","ナッツ、チョコレート、シナモン","MEDIUM"]),
+ ["米国で2008年に、日本では（⑨）年に販売開始。",[["⑨","2010（年）"]]],
+ [drip("⑩"),[["⑩","HOTのみ可"]]],
+ ["パッケージデザイン　1号店がある（⑪（都市））の（⑫（市場））が（⑬）で表されている。（⑭（数字））は店舗の番地。ブタの（⑮（名前））がマスコット。",[["⑪","シアトル"],["⑫","パイクプレイスマーケット"],["⑬","コーヒースクープ"],["⑭","1912"],["⑮","レイチェル"]]]
+]},
+{cat:"Medium",name:"グアテマラ アンティグア",items:[
+ ...std(["GUA","ラテンアメリカ","水洗式","ココアやスパイスを思わせる洗練された風味\nNotes of Cocoa & Baking Spice","コク：Medium","酸味：Medium","チョコレート、ナッツ、キャラメル、リンゴ","MEDIUM"]),
+ [drip("⑨"),[["⑨","HOTもICEも可"]]],
+ ["パッケージデザイン　グアテマラの（⑩）地方の象徴的な鳥（⑪（グアテマラの国鳥））を表現し、コーヒーのロースト感を表現するために（⑫）色にし美しいきらめきを加えている。",[["⑩","アンティグア"],["⑪","ケツァール"],["⑫","銅"]]]
+]},
+{cat:"Medium",name:"ハウス ブレンド / ディカフェ ハウス ブレンド",items:[
+ ...std(["HOU / DHO","ラテンアメリカ","水洗式","ナッツやココアを思わせるバランスの取れた味わい\nNotes of Toffee & Dusted Cocoa　※Toffee＝バターと砂糖を高温で煮詰めたお菓子","コク：Medium","酸味：Medium","ナッツ、リンゴ、ブルーベリー","MEDIUM"]),
+ ["HOUは、創業年である（⑨）年から販売が開始された初のブレンドコーヒー。",[["⑨","1971（年）"]]],
+ [drip("⑬"),[["⑬","HOTもICEも可"]]],
+ ["パッケージデザイン　ブラシで描かれた曲線は、ブレンドを生み出してきた（⑭）と（⑮）を表現。コーヒーの木や葉に（⑯）のイラストを重ね、農園からロースタリーまでのコーヒーの旅路を祝福している。",[["⑭","芸術性"],["⑮","専門性　（順不同）"],["⑯","コーヒースクープ"]]]
+]},
+{cat:"Medium",name:"コロンビア",items:[
+ ...std(["CLG","ラテンアメリカ","水洗式","クルミを思わせる香ばしさとハーブのような風味\nNotes of Toasted Walnut & Herbs","コク：MEDIUM","酸味：MEDIUM","ミルクチョコレート、ピーカンナッツ","MEDIUM"]),
+ [drip("⑨"),[["⑨","HOTもICEも可"]]],
+ ["パッケージデザイン　コロンビアに敬意を表し、（⑩）の地形と（⑪（鳥の名前））が描かれる。幾何学模様のデザインはクナ族の女性による伝統的な織物（⑫）にちなんだもの。",[["⑩","山"],["⑪","アンデスコンドル"],["⑫","モラ"]]],
+ ["（⑬）年にとあるサンプルがコーヒーバイヤーのもとへ持ち込まれたことから販売が開始された。",[["⑬","1990（年）"]]]
+]},
+{cat:"Medium",name:"TOKYO ロースト",items:[
+ ...std(["TYO","マルチリージョン（アジア・太平洋、ラテンアメリカ）","水洗式＋半水洗式","まろやかで心温まる味わい\nNotes of Cinnamon & Tarragon　※Tarragon＝ヨモギ科のハーブ","コク：Medium","酸味：Medium","シナモン・レーズン・オートミール・チョコレート","MEDIUM"]),
+ ["TYOは（⑨）が描かれた（⑩）ブレンドのレシピを使用。このブレンドは、「寒さのなか漁に出る漁師たちを温めてあげたい」と考えた船長のために初代オーナー達が考え出したもの。",[["⑨","灰色グマ"],["⑩","ユーコン（ブレンド）"]]],
+ ["TYOはすべて（⑪）で焙煎されている",[["⑪","RESERVE® ROASTERY TOKYO"]]],
+ ["（⑫）年に（⑬）の開業を記念して発売された。",[["⑫","2019（年）"],["⑬","RESERVE® ROASTERY TOKYO"]]],
+ [drip("⑭"),[["⑭","HOTのみ可"]]]
+]},
+{cat:"Medium",name:"コールドブリュー ブレンド",items:[
+ ...std(["CBR","マルチリージョン（ラテンアメリカ、アフリカ）","水洗式","Citrus（シトラス）& Sweet Chocolate（スイートチョコレート）","コク：Full","酸味：Low","シトラス・ナッツ・ココア","MEDIUM"]),
+ ["店舗での抽出方法　抽出時は（⑨（常温or 冷蔵））で（⑩）時間抽出",[["⑨","常温"],["⑩","14（時間）"]]],
+ ["店舗での抽出方法　マルコニックの挽き具合は（⑪）番",[["⑪","6（番）"]]],
+ ["店舗での抽出方法　豆の量が5lbの時、注ぐ水の量は袋の中に（⑫）L、外に（⑬）L加える",[["⑫","7（L）"],["⑬","7（L）"]]],
+ ["店舗での抽出方法　豆の量が3lbの時、注ぐ水の量は袋の中に（⑭）L、外に（⑮）L加える",[["⑭","4.5（L）"],["⑮","4.5（L）"]]],
+ ["コールドブリューの歴史は古く、（⑯）年にパイクプレイスにある1号店で、コーヒーをカルダモン等のスパイスと抽出した（⑰（商品名））を提供していた。",[["⑯","1971（年）"],["⑰","マラケッシュアイスコーヒー"]]],
+ ["コールドブリュは抽出方法の1つで、熱の代わりに水で時間をかけて抽出することで、酸味が（⑱（強く or 弱く））、口当たりが（⑲（すっきり or なめらか））なコーヒーに仕上がる。",[["⑱","弱く"],["⑲","なめらかで"]]]
+]},
+{cat:"Dark",name:"スマトラ",items:[
+ ...std(["SUM","アジア/太平洋","半水洗式","大地を思わせる風味としっかりとしたコク\nNotes of Rich Herbs & Rustic Spice","コク：FULL","酸味：LOW","シナモン、メープル、バター、チーズ、トフィー、オートミール","DARK"]),
+ [drip("⑨"),[["⑨","HOTのみ可"]]],
+ ["パッケージデザイン　（⑩（動物の名前））のしま模様とヤシの葉の形が似ている所に着目し、ヤシの木やジャングルの風景に対する比率を変えている。",[["⑩","スマトラトラ"]]]
+]},
+{cat:"Dark",name:"コモド ドラゴン ブレンド",items:[
+ ...std(["KDR","アジア/太平洋","水洗式/半水洗式","フレッシュなハーブの風味とスパイシーな余韻\nNotes of Fresh Herbs & Warm Spice","コク：FULL","酸味：LOW(少ない)","シナモン、メープル、バター、チーズ、ハーブ","DARK"]),
+ [drip("⑨"),[["⑨","HOTのみ可"]]],
+ ["パッケージデザイン　KDRのテーマは、（⑩）と（⑪）。デザインには野生の（⑫（動物の名前））と地域の植物が描かれ、インドネシア全島のエッセンスを讃えている。",[["⑩","テロワール"],["⑪","オリジン"],["⑫","コモドドラゴン"]]],
+ ["日本では（⑬）年に販売開始、（⑭）年には辰年を記念して（⑮）ブレンドという名称で限定販売された。",[["⑬","1997（年）"],["⑭","2000（年）"],["⑮","ドラゴン（ブレンド）"]]],
+ ["（⑯）年には米国とカナダでプロモーションコーヒーとして販売された。",[["⑯","2004（年）"]]]
+]},
+{cat:"Dark",name:"カフェ ベロナ",items:[
+ ...std(["VER","マルチリージョン（ラテンアメリカ、アジア太平洋）","水洗式/半水洗式","ダークココアのような風味とローストの甘みと深み\nNotes of Dark Cocoa & Caramelized Sugar","コク：FULL","酸味：LOW","ミルクチョコレート、ダークチョコレート、カラメル","DARK"]),
+ [drip("⑨"),[["⑨","HOTのみ可"]]],
+ ["パッケージデザイン　シェイクスピアの（⑩（作品名））の舞台にちなんだコーヒー。象徴的なベロナの赤い（⑪（花の名前））を重ね、噴水、扉、（⑫（国名））のお城のようなディティールを表現している。",[["⑩","ロミオとジュリエット"],["⑪","（赤い）バラ"],["⑫","イタリア"]]],
+ ["（⑬）年、シアトルの\"（⑭（レストランの名前））\"で食後に出すコーヒーとして開発された。当時の名称は\"（⑮）ブレンド\"、その後人気であったため\"（⑯）ブレンド\"としてラインナップに加えられ、最終的にカフェ ベロナになった。",[["⑬","1975"],["⑭","ジェイクオショーネシー"],["⑮","ジェイクス（ブレンド）"],["⑯","80/20（ブレンド）\n※エイティ/トゥエンティ ブレンド：ユーコンブレンド80%、イタリアンロースト20%のレシピに由来"]]]
+]},
+{cat:"Dark",name:"エスプレッソ ロースト / ディカフェ エスプレッソ ロースト",items:[
+ ...std(["ESP / DES（DER）","マルチリージョン（ラテンアメリカ、アジア・太平洋）","水洗式/半水洗式","豊かな風味とキャラメルのような甘み\nNotes of Rich Molasses & Caramel　※molasses＝黒みつ、糖蜜","コク：FULL","酸味：MEDIUM","キャラメル、チョコレート、スパイス、ナッツ","DARK"]),
+ ["DESは量り売りでの販売が（⑩（可/不可））",[["⑩","可"]]],
+ [drip("⑪"),[["⑪","不可"]]],
+ ["パッケージデザイン　濃い紫は深煎りであること、（⑫）や（⑬）のような風味をもつことを表している。（⑭）色のアクセントは（⑮）の質感を表現し、コーヒー豆の列はスターバックスのブレンドの技術を表現している。",[["⑫","キャラメル"],["⑬","黒蜜（モラセス）"],["⑭","シルバー（色）"],["⑮","クレマ"]]],
+ ["ESPの焙煎は（⑯）年に始まった。",[["⑯","1975（年）"]]]
+]},
+{cat:"Dark",name:"イタリアン ロースト",items:[
+ ...std(["ITA","マルチリージョン","水洗式/半水洗式","ロースト感のある甘みとカラメルのような風味\nNotes of Dark Cocoa & Toasted Marshmallow","コク：MEDIUM","酸味：LOW","ダークチョコレート、カラメル、スパイス","DARK"]),
+ [drip("⑨"),[["⑨","ICEのみ可"]]],
+ ["パッケージデザイン　（⑩）人の一般的な移動手段である（⑪）を使用する等ストーリーを伝えている。美しい（⑫）模様のタイル、（⑬）石の質感を取り入れ、奥行きを出している。",[["⑩","イタリア（人）"],["⑪","ヴェスパ"],["⑫","市松（模様）"],["⑬","テラゾー（石）"]]],
+ ["最も深煎りのコーヒーを東海岸では\"（⑭）ロースト\"、西海岸では\"（⑮）ロースト\"と呼ぶ。",[["⑭","イタリアン（ロースト）"],["⑮","フレンチ（ロースト）"]]]
+]},
+{cat:"Dark",name:"フレンチ ロースト",items:[
+ ...std(["FRE","マルチリージョン","生産地域により異なる","スモーキーさと個性的で力強い風味\nNotes of Dark Caramel & Sweet Smoke","コク：LIGHT","酸味：LOW","煎ったナッツ、ローストした野菜、カラメル","DARK"]),
+ [drip("⑨"),[["⑨","不可"]]],
+ ["パッケージデザイン　（⑩（国名））の建築デザインからインスピレーションを得たシンメトリーが特徴的。この国を象徴する（⑪）は、これまでのデザインに敬意を表している。深煎りに対する経緯を示す（⑫）のモチーフを盛り込む。",[["⑩","フランス"],["⑪","フルール・ド・リス"],["⑫","炎"]]],
+ ["このコーヒーは（⑬）年から販売されている。",[["⑬","1971（年）"]]],
+ ["カフェイン含有量は他のコーヒー（⑭（より多い / と変わらない / より少ない））",[["⑭","と変わらない"]]]
+]}
+];
+
+// flatten
+const ALL=[];DATA.forEach((c,ci)=>c.items.forEach((it,ii)=>ALL.push({id:ci+"-"+ii,ci,cat:c.cat,name:c.name,q:it[0],a:it[1],f:it[2]})));
+
+const LS="ba-quiz-v1";
+let st={res:{}};try{st=JSON.parse(localStorage.getItem(LS))||st}catch(e){}
+const save=()=>{try{localStorage.setItem(LS,JSON.stringify(st))}catch(e){}};
+
+let cat="すべて",coffee="all",mode="order",fmt="mc",deck=[],pos=0,shown=false,sessOk=0,sessNg=0;
+let mc=null; // {step, picked, allOk, sets:[{choices,correct}]}
+const $=id=>document.getElementById(id);
+const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const clean=a=>a.split("\n")[0].split("　※")[0].trim();
+const keyOf=a=>clean(a).replace(/（[^）]*）|\([^)]*\)/g,"").replace(/\s/g,"").toLowerCase();
+const shuffle=a=>{a=a.slice();for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a};
+
+// 問題文中の選択肢（例：（⑨（可/不可）））を取り出す
+function inlineOpts(q,n){
+  const s=q.indexOf("（"+n+"（");if(s<0)return null;
+  const b=s+2,e=q.indexOf("）",b);const body=q.slice(b+1,e);
+  const o=body.split(/\s*\/\s*|\s*or\s*/).map(t=>t.trim()).filter(Boolean);
+  return o.length>=2?o:null;
+}
+function poolKey(x,n,a,k){
+  if(inlineOpts(x.q,n))return null;
+  if(x.f)return x.f+"-"+k;
+  if(/^\d{4}/.test(clean(a)))return "year";
+  if(/^[\d.]+/.test(clean(a)))return "num";
+  return "gen";
+}
+const POOLS={};
+ALL.forEach(x=>x.a.forEach(([n,a],k)=>{const p=poolKey(x,n,a,k);if(!p)return;(POOLS[p]=POOLS[p]||[]).push(clean(a))}));
+function makeSet(x,n,a,k){
+  const o=inlineOpts(x.q,n);
+  if(o){const c=o.find(t=>t===clean(a))||o.find(t=>clean(a).startsWith(t))||o.find(t=>t.startsWith(clean(a)))||clean(a);
+    return {choices:o.slice(),correct:c}}
+  const ck=keyOf(a),seen=new Set([ck]),wrong=[];
+  for(const c of shuffle(POOLS[poolKey(x,n,a,k)]||[])){const kk=keyOf(c);if(seen.has(kk))continue;seen.add(kk);wrong.push(c);if(wrong.length===3)break}
+  if(wrong.length<3&&!x.f)for(const c of shuffle(POOLS.gen)){const kk=keyOf(c);if(seen.has(kk))continue;seen.add(kk);wrong.push(c);if(wrong.length===3)break}
+  return {choices:shuffle([clean(a),...wrong]),correct:clean(a)};
+}
+function startMc(){const it=deck[pos];if(!it){mc=null;return}
+  mc={step:0,picked:null,allOk:true,sets:it.a.map(([n,a],k)=>makeSet(it,n,a,k))}}
+
+function chips(el,opts,cur,fn){el.innerHTML="";opts.forEach(([v,l])=>{const b=document.createElement("button");b.className="chip";b.textContent=l;b.setAttribute("aria-pressed",v===cur);b.onclick=()=>fn(v);el.appendChild(b)})}
+function renderFilters(){
+  chips($("fmts"),[["mc","4択"],["card","一問一答"]],fmt,v=>{fmt=v;build()});
+  chips($("cats"),["すべて","総論","Blonde","Medium","Dark"].map(v=>[v,v]),cat,v=>{cat=v;coffee="all";build()});
+  const list=DATA.map((c,i)=>[i,c]).filter(([,c])=>cat==="すべて"||c.cat===cat);
+  $("coffee").innerHTML=`<option value="all">${cat==="すべて"?"全コーヒー":cat+"のすべて"}（${list.reduce((s,[,c])=>s+c.items.length,0)}問）</option>`+list.map(([i,c])=>`<option value="${i}">${esc(c.name)}（${c.items.length}問）</option>`).join("");
+  $("coffee").value=coffee;
+  const ng=ALL.filter(x=>st.res[x.id]==="ng").length;
+  chips($("modes"),[["order","順番"],["shuffle","シャッフル"],["wrong",`×だけ復習（${ng}）`]],mode,v=>{mode=v;build()});
+}
+$("coffee").onchange=e=>{coffee=e.target.value;build()};
+
+function build(){
+  let pool=ALL.filter(x=>(cat==="すべて"||x.cat===cat)&&(coffee==="all"||String(x.ci)===coffee));
+  if(mode==="wrong")pool=pool.filter(x=>st.res[x.id]==="ng");
+  deck=mode==="order"?pool.slice():shuffle(pool);
+  pos=0;shown=false;sessOk=sessNg=0;startMc();renderFilters();render();
+}
+
+// state(i): "filled" | "current" | ""
+function qHtml(item,state){
+  const map=Object.fromEntries(item.a),idx=Object.fromEntries(item.a.map(([n],i)=>[n,i]));
+  return esc(item.q).replace(/（([①-⑳])((?:（[^）]*）|[^（）])*)）/g,(m,n,rest)=>{
+    const s=idx[n]===undefined?"":state(idx[n]);
+    if(s==="filled")return `<span class="blank filled">${esc(clean(map[n]))}</span>`;
+    return `<span class="blank${s==="current"?" current":""}">${n}${rest}</span>`;
+  });
+}
+const ansHtml=it=>`<div class="ans">${it.a.map(([n,a])=>`<div><span>${n}</span><span>${esc(a).replace(/\n/g,"<br>")}</span></div>`).join("")}</div>`;
+
+function render(){
+  const total=deck.length;
+  $("barfill").style.width=total?(Math.min(pos,total)/total*100)+"%":"0";
+  $("score").textContent=`○ ${sessOk}　× ${sessNg}`;
+  const card=$("card"),ctr=$("controls");
+  if(!total){$("pos").textContent="0 / 0";card.innerHTML=`<p class="done">${mode==="wrong"?"×の問題はありません。":"問題がありません。"}</p>`;ctr.innerHTML="";return}
+  if(pos>=total){$("pos").textContent=`${total} / ${total}`;
+    card.innerHTML=`<p class="done" style="margin:auto">おつかれさま！<br>○ ${sessOk}問　× ${sessNg}問</p>`;
+    ctr.innerHTML=`<button class="btn primary" id="again">もう一度</button>`;$("again").onclick=build;return}
+  const it=deck[pos],r=st.res[it.id];
+  $("pos").textContent=`${pos+1} / ${total}`;
+  const tag=`<div class="tag"><b>${esc(it.cat)}</b><span>${esc(it.name)}</span>${r?`<span class="mark ${r}">前回 ${r==="ok"?"○":"×"}</span>`:""}</div>`;
+
+  if(fmt==="card"){
+    card.innerHTML=`${tag}<p class="q">${qHtml(it,()=>shown?"filled":"")}</p>${shown?ansHtml(it):""}`;
+    if(!shown){ctr.innerHTML=`<button class="btn primary" id="show">答えを見る</button>`;$("show").onclick=()=>{shown=true;render()}}
+    else{ctr.innerHTML=`<button class="btn ng" id="ng">× まちがえた</button><button class="btn ok" id="ok">○ 正解</button>`;
+      $("ok").onclick=()=>grade("ok");$("ng").onclick=()=>grade("ng")}
+    return;
+  }
+  // 4択
+  const m=mc,last=m.step===it.a.length-1,done=m.picked!==null&&last;
+  const state=i=>i<m.step||(i===m.step&&m.picked!==null)?"filled":i===m.step?"current":"";
+  const set=m.sets[m.step],[n]=it.a[m.step];
+  const multi=it.a.length>1?`<span class="stepn">空欄 ${m.step+1} / ${it.a.length}</span>`:"";
+  const ch=`<div class="choices" role="group" aria-label="${n}の選択肢">${set.choices.map((c,i)=>{
+    let cls="choice";if(m.picked!==null){if(c===set.correct)cls+=" right";else if(i===m.picked)cls+=" wrong";}
+    return `<button class="${cls}" data-i="${i}" ${m.picked!==null?"disabled":""}><span class="cn">${n}</span>${esc(c)}</button>`}).join("")}</div>`;
+  card.innerHTML=`${tag}<p class="q">${qHtml(it,state)}</p>${multi}${ch}${done?ansHtml(it):""}`;
+  card.querySelectorAll(".choice").forEach(b=>b.onclick=()=>{const i=+b.dataset.i;m.picked=i;if(set.choices[i]!==set.correct)m.allOk=false;render()});
+  if(m.picked===null){ctr.innerHTML="";return}
+  if(!last){ctr.innerHTML=`<button class="btn primary" id="nx">次の空欄へ</button>`;$("nx").onclick=()=>{m.step++;m.picked=null;render()}}
+  else{const g=m.allOk?"ok":"ng";
+    ctr.innerHTML=`<div class="verdict ${g}">${g==="ok"?"○ 正解":"× まちがい"}</div><button class="btn primary" id="nx">次の問題へ</button>`;
+    $("nx").onclick=()=>grade(g)}
+}
+function grade(g){st.res[deck[pos].id]=g;save();g==="ok"?sessOk++:sessNg++;pos++;shown=false;startMc();renderFilters();render()}
+$("prev").onclick=()=>{if(pos>0){pos--;shown=false;startMc();render()}};
+let armed=false;
+$("reset").onclick=e=>{if(!armed){armed=true;e.target.textContent="本当にリセット？（もう一度タップ）";setTimeout(()=>{armed=false;e.target.textContent="記録をリセット"},3000);return}
+  st={res:{}};save();armed=false;e.target.textContent="記録をリセット";build()};
+document.addEventListener("keydown",e=>{if(fmt==="card"&&(e.key===" "||e.key==="Enter")){if(!shown&&pos<deck.length){e.preventDefault();shown=true;render()}}});
+build();
+</script>
+
+</body>
+</html>
