@@ -70,6 +70,11 @@ select{font:inherit;font-size:.9rem;padding:8px 10px;border-radius:8px;border:1p
 .verdict{flex:1 0 100%;text-align:center;font-weight:700}
 .verdict.ok{color:var(--ok)} .verdict.ng{color:var(--ng)}
 .seg .chip{font-weight:700}
+.bm{display:flex;gap:14px;align-items:flex-start;margin:auto 0}
+.bm-ico{width:22px;flex:none;fill:var(--accent);margin-top:4px}
+.bm-body{min-width:0;display:flex;flex-direction:column;gap:2px}
+.bm-title{margin:0;font-weight:700;font-size:1.05rem}
+.bm-meta{margin:0;color:var(--muted);font-size:.85rem}
 @media (prefers-reduced-motion:reduce){.bar i{transition:none}}
 </style>
 
@@ -247,6 +252,24 @@ let st={res:{}};try{st=JSON.parse(localStorage.getItem(LS))||st}catch(e){}
 const save=()=>{try{localStorage.setItem(LS,JSON.stringify(st))}catch(e){}};
 
 let cat="すべて",coffee="all",mode="order",fmt="mc",deck=[],pos=0,shown=false,sessOk=0,sessNg=0;
+// しおり：絞り込みの組み合わせごとに、出題順と進み具合を保存
+const BMK="ba-quiz-bm-v1";
+let bm={last:null,list:{}};try{bm=JSON.parse(localStorage.getItem(BMK))||bm}catch(e){}
+const saveBMs=()=>{try{localStorage.setItem(BMK,JSON.stringify(bm))}catch(e){}};
+const comboKey=()=>[fmt,cat,coffee,mode].join("|");
+let pendingResume=null;
+function saveBM(){
+  bm.last={fmt,cat,coffee,mode};
+  if(deck.length&&pos>0&&pos<deck.length)bm.list[comboKey()]={ids:deck.map(x=>x.id),pos,ok:sessOk,ng:sessNg,t:Date.now()};
+  else delete bm.list[comboKey()];
+  saveBMs();
+}
+function comboLabel(){
+  const f={mc:"4択",card:"一問一答",pair:"相性クイズ"}[fmt],m={order:"順番",shuffle:"シャッフル",wrong:"×だけ復習"}[mode];
+  const c=coffee==="all"?(cat==="すべて"?"全コーヒー":cat):DATA[+coffee].name;
+  return `${f}・${c}・${m}`;
+}
+if(bm.last){({fmt,cat,coffee,mode}=Object.assign({fmt,cat,coffee,mode},bm.last))}
 let mc=null; // {step, picked, allOk, sets:[{choices,correct}]}
 const $=id=>document.getElementById(id);
 const esc=s=>s.replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
@@ -357,8 +380,19 @@ function build(){
   if(fmt==="pair")pool=pool.filter(x=>x.f==="s7");
   if(mode==="wrong")pool=pool.filter(x=>st.res[x.id]==="ng");
   deck=mode==="order"?pool.slice():shuffle(pool);
-  pos=0;shown=false;sessOk=sessNg=0;startMc();renderFilters();render();
+  pos=0;shown=false;sessOk=sessNg=0;
+  const b=bm.list[comboKey()];
+  pendingResume=b&&b.pos>0&&b.pos<b.ids.length?b:null;
+  bm.last={fmt,cat,coffee,mode};saveBMs();
+  startMc();renderFilters();render();
 }
+function resume(){
+  const b=pendingResume,byId=Object.fromEntries(ALL.map(x=>[x.id,x]));
+  const ids=b.ids.filter(id=>byId[id]);
+  deck=ids.map(id=>byId[id]);pos=Math.min(b.pos,deck.length);sessOk=b.ok||0;sessNg=b.ng||0;
+  pendingResume=null;shown=false;startMc();render();
+}
+function fresh(){pendingResume=null;delete bm.list[comboKey()];saveBMs();build()}
 
 // state(i): "filled" | "current" | ""
 function qHtml(item,state){
@@ -376,12 +410,22 @@ function render(){
   $("barfill").style.width=total?(Math.min(pos,total)/total*100)+"%":"0";
   $("score").textContent=`○ ${sessOk}　× ${sessNg}`;
   const card=$("card"),ctr=$("controls");
+  if(pendingResume){const b=pendingResume,d=new Date(b.t);
+    $("pos").textContent=`しおり ${b.pos} / ${b.ids.length}`;$("score").textContent=`○ ${b.ok}　× ${b.ng}`;
+    $("barfill").style.width=(b.pos/b.ids.length*100)+"%";
+    card.innerHTML=`<div class="bm">
+      <svg class="bm-ico" viewBox="0 0 24 32" aria-hidden="true"><path d="M2 0h20v32l-10-8-10 8z"/></svg>
+      <div class="bm-body"><p class="bm-title">しおりがあります</p>
+      <p class="bm-meta">${esc(comboLabel())}</p>
+      <p class="bm-meta">${b.pos+1}問目から（全${b.ids.length}問）　${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,"0")}:${String(d.getMinutes()).padStart(2,"0")} に保存</p></div></div>`;
+    ctr.innerHTML=`<button class="btn" id="fresh">最初から</button><button class="btn primary" id="resume">続きから</button>`;
+    $("resume").onclick=resume;$("fresh").onclick=fresh;return}
   if(!total){$("pos").textContent="0 / 0";card.innerHTML=`<p class="done">${mode==="wrong"?"×の問題はありません。":"問題がありません。"}</p>`;ctr.innerHTML="";return}
   if(pos>=total){$("pos").textContent=`${total} / ${total}`;
     card.innerHTML=`<p class="done" style="margin:auto">おつかれさま！<br>○ ${sessOk}問　× ${sessNg}問</p>`;
     ctr.innerHTML=`<button class="btn primary" id="again">もう一度</button>`;$("again").onclick=build;return}
   const it=deck[pos],r=st.res[it.id];
-  $("pos").textContent=`${pos+1} / ${total}`;
+  $("pos").textContent=`${pos+1} / ${total}`+(pos>0?"　しおり保存中":"");
   const tag=`<div class="tag"><b>${esc(it.cat)}</b><span>${esc(it.name)}</span>${r?`<span class="mark ${r}">前回 ${r==="ok"?"○":"×"}</span>`:""}</div>`;
 
   if(fmt==="card"){
@@ -408,11 +452,11 @@ function render(){
     ctr.innerHTML=`<div class="verdict ${g}">${g==="ok"?"○ 正解":"× まちがい"}</div><button class="btn primary" id="nx">次の問題へ</button>`;
     $("nx").onclick=()=>grade(g)}
 }
-function grade(g){st.res[deck[pos].id]=g;save();g==="ok"?sessOk++:sessNg++;pos++;shown=false;startMc();renderFilters();render()}
-$("prev").onclick=()=>{if(pos>0){pos--;shown=false;startMc();render()}};
+function grade(g){st.res[deck[pos].id]=g;save();g==="ok"?sessOk++:sessNg++;pos++;shown=false;saveBM();startMc();renderFilters();render()}
+$("prev").onclick=()=>{if(pendingResume)return;if(pos>0){pos--;shown=false;saveBM();startMc();render()}};
 let armed=false;
 $("reset").onclick=e=>{if(!armed){armed=true;e.target.textContent="本当にリセット？（もう一度タップ）";setTimeout(()=>{armed=false;e.target.textContent="記録をリセット"},3000);return}
-  st={res:{}};save();armed=false;e.target.textContent="記録をリセット";build()};
+  st={res:{}};save();bm={last:null,list:{}};saveBMs();armed=false;e.target.textContent="記録をリセット";build()};
 document.addEventListener("keydown",e=>{if(fmt==="card"&&(e.key===" "||e.key==="Enter")){if(!shown&&pos<deck.length){e.preventDefault();shown=true;render()}}});
 build();
 </script>
