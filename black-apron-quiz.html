@@ -254,7 +254,20 @@ const NEW=[{"cat": "CA100", "name": "スターバックスのはじまりと歴�
 NEW.forEach(c=>DATA.push(c));
 // flatten
 const ALL=[];DATA.forEach((c,ci)=>c.items.forEach((it,ii)=>ALL.push({id:ci+"-"+ii,ci,cat:c.cat,name:c.name,q:it[0],a:it[1],f:it[2]||undefined,ex:it[3]||null,src:c.src||"core"})));
-const CATS=[...new Set(DATA.map(c=>c.cat))];
+// 問題集のページ順に並べる（記録・しおりのIDは変えない）
+const ORDER=(()=>{const idx=DATA.map((c,i)=>i),core=idx.filter(i=>!DATA[i].src),nw=idx.filter(i=>DATA[i].src);
+  const isRes=i=>/^リザーブ /.test(DATA[i].cat),res=nw.filter(isRes),rest=nw.filter(i=>!isRes(i));
+  const out=[];let coreDone=false;
+  for(let k=0;k<rest.length;k++){const i=rest[k];
+    if(!coreDone&&DATA[i].cat==="プロモ"){out.push(...core);coreDone=true}
+    out.push(i);
+    if(DATA[i].cat==="Starbucks Reserve®編"&&(k+1>=rest.length||DATA[rest[k+1]].cat!=="Starbucks Reserve®編"))out.push(...res)}
+  if(!coreDone)out.push(...core);
+  for(const i of res)if(!out.includes(i))out.push(i);
+  return out})();
+const RANK={};ORDER.forEach((ci,r)=>RANK[ci]=r);
+ALL.sort((x,y)=>RANK[x.ci]-RANK[y.ci]||(+x.id.split("-")[1])-(+y.id.split("-")[1]));
+const CATS=[...new Set(ORDER.map(i=>DATA[i].cat))];
 const CORE_CATS=new Set(["総論","Blonde","Medium","Dark"]);
 const catLabel=c=>CORE_CATS.has(c)?"コアコーヒー："+c:c;
 
@@ -438,7 +451,7 @@ function renderFilters(){
   $("cats").innerHTML=["すべて",...CATS].filter(c=>c==="すべて"||cnt(c)).map(c=>`<option value="${esc(c)}">${esc(c==="すべて"?"すべての章":catLabel(c))}（${cnt(c)}問）</option>`).join("");
   if(![...$("cats").options].some(o=>o.value===cat))cat="すべて";
   $("cats").value=cat;
-  const list=DATA.map((c,i)=>[i,c]).filter(([,c])=>(cat==="すべて"||c.cat===cat)&&(fmt!=="pair"||c.items.some(it=>it[2]==="s7")));
+  const list=ORDER.map(i=>[i,DATA[i]]).filter(([,c])=>(cat==="すべて"||c.cat===cat)&&(fmt!=="pair"||c.items.some(it=>it[2]==="s7")));
   $("coffee").innerHTML=`<option value="all">${cat==="すべて"?"全セクション":catLabel(cat)+"のすべて"}（${list.reduce((s,[,c])=>s+c.items.length,0)}問）</option>`+list.map(([i,c])=>`<option value="${i}">${esc(c.name)}（${c.items.length}問）</option>`).join("");
   $("coffee").value=coffee;
   const ng=ALL.filter(x=>st.res[x.id]==="ng"&&(fmt!=="pair"||x.f==="s7")).length;
